@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/spyzhov/telego/tobject"
 	"io"
 	"io/ioutil"
 	"log"
@@ -20,13 +19,15 @@ type Bot struct {
 	token string
 }
 
+type Response struct {
+	OK     bool            `json:"ok"`
+	Result json.RawMessage `json:"result"`
+}
+
 type Logger func(format string, v ...interface{})
 
-type Action string
-
 const (
-	Host  = "https://api.telegram.org"
-	debug = true
+	Host = "https://api.telegram.org"
 )
 
 var (
@@ -42,15 +43,16 @@ func New(token string) *Bot {
 	}
 }
 
-func (b *Bot) post(ctx context.Context, action Action, body interface{}) (*http.Response, error) {
+func (b *Bot) post(ctx context.Context, action string, body interface{}) (*http.Response, error) {
 	target, err := url.Parse(fmt.Sprintf("%s/bot%s/%s", b.Host, b.token, action))
 	if err != nil {
 		return nil, err
 	}
 
+	var data []byte
 	buffer := bytes.NewBuffer(nil)
 	if body != nil {
-		data, err := json.Marshal(body)
+		data, err = json.Marshal(body)
 		if err != nil {
 			return nil, err
 		}
@@ -66,7 +68,7 @@ func (b *Bot) post(ctx context.Context, action Action, body interface{}) (*http.
 	return new(http.Client).Do(req)
 }
 
-func (b *Bot) get(ctx context.Context, action Action, params map[string]string) (*http.Response, error) {
+func (b *Bot) get(ctx context.Context, action string, params map[string]string) (*http.Response, error) {
 	target, err := url.Parse(fmt.Sprintf("%s/bot%s/%s", b.Host, b.token, action))
 	if err != nil {
 		return nil, err
@@ -93,7 +95,7 @@ func (b *Bot) closer(closer io.Closer, scope string) {
 	}
 }
 
-func (b *Bot) getResult(ctx context.Context, action Action, params map[string]string, result interface{}) error {
+func (b *Bot) getResult(ctx context.Context, action string, params map[string]string, result interface{}) error {
 	defer b.debug("[STOP ] GET request: %s", action)
 	b.debug("[START] GET request: %s", action)
 	response, err := b.get(ctx, action, params)
@@ -106,7 +108,7 @@ func (b *Bot) getResult(ctx context.Context, action Action, params map[string]st
 	return b.parse(response, &result)
 }
 
-func (b *Bot) postResult(ctx context.Context, action Action, body interface{}, result interface{}) error {
+func (b *Bot) postResult(ctx context.Context, action string, body interface{}, result interface{}) error {
 	defer b.debug("[STOP ] POST request: %s", action)
 	b.debug("[START] POST request: %s", action)
 	response, err := b.post(ctx, action, body)
@@ -120,16 +122,15 @@ func (b *Bot) postResult(ctx context.Context, action Action, body interface{}, r
 }
 
 func (b *Bot) parse(response *http.Response, object *interface{}) error {
-	if response.StatusCode != http.StatusOK {
-		b.Log("invalid status code: %d", response.StatusCode)
-		return InvalidStatusCode
-	}
 	data, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return err
 	}
+	if response.StatusCode != http.StatusOK {
+		b.Log("invalid status code: %d // %s", response.StatusCode, string(data))
+	}
 	b.debug("response: %s", data)
-	result := new(tobject.Response)
+	result := new(Response)
 	err = json.Unmarshal(data, &result)
 	if err != nil {
 		return err
