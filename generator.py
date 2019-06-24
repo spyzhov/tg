@@ -110,12 +110,18 @@ def get_text(tag: Tag) -> str:
 
 
 def get_type(base: str) -> str:
+    # if base.find(' or ') != -1:
+    #     base = base.split(' or ')[0]
+    # if base.find(' and ') != -1:
+    #     base = base.split(' and ')[0]
+    if base == 'Integer or String':
+        return 'int'
+    if base == 'InputFile or String':
+        return 'json.RawMessage'
+    if base.find(' or ') != -1 or base.find(' and ') != -1:
+        return 'json.RawMessage'
     if base.startswith('Array of '):
         return '[]' + get_type(base[9:])
-    if base.find(' or ') != -1:
-        base = base.split(' or ')[0]
-    if base.find(' and ') != -1:
-        base = base.split(' and ')[0]
     return TYPES.get(base, '*' + base)
 
 
@@ -253,12 +259,12 @@ def main():
     request, response = parse_responses(soup)
 
     with open('response.go', 'w') as objects:
-        objects.write(HEADER)
+        objects.write(f'{HEADER}\nimport "encoding/json"\n')
         for _type in response:
             objects.write(f'\n{_type!r}\n{_type}\n')
 
     with open('request.go', 'w') as objects:
-        objects.write(HEADER)
+        objects.write(f'{HEADER}\nimport "encoding/json"\n')
         for _type in request:
             if _type.exists:
                 objects.write(f'\n{_type!r}\n{_type}\n')
