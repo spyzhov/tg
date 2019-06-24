@@ -8,6 +8,10 @@ Implemented all methods up to: May 31, 2019 Bot API 4.3
 
 All examples are at: [example](example/) dir.
 
+# Generator
+
+Generates API using [`generator.py`](generator.py): [requirements](requirements.txt) listed at file, Python3.7 required.
+
 ## Simple use
 
 ```go
