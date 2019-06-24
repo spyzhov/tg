@@ -1,6 +1,8 @@
 # Telegram BOT
 
-Implement basic [Telegram Bot API](https://core.telegram.org/bots/api).
+Implement golang interface for [Telegram Bot API](https://core.telegram.org/bots/api).
+
+Implemented all methods up to: May 31, 2019 Bot API 4.3
 
 # Examples
 
