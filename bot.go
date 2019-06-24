@@ -11,7 +11,10 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"time"
 )
+
+//go:generate go run gen.go
 
 type Bot struct {
 	Host  string
@@ -63,6 +66,7 @@ func (b *Bot) post(ctx context.Context, action string, body interface{}) (*http.
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("Content-Type", "application/json")
 	req = req.WithContext(ctx)
 
 	return new(http.Client).Do(req)
@@ -96,7 +100,9 @@ func (b *Bot) closer(closer io.Closer, scope string) {
 }
 
 func (b *Bot) getResult(ctx context.Context, action string, params map[string]string, result interface{}) error {
-	defer b.debug("[STOP ] GET request: %s", action)
+	defer func(start time.Time) {
+		b.debug("[STOP ] GET  request: %s [%0.5fs]", action, float64(time.Since(start))/float64(time.Second))
+	}(time.Now())
 	b.debug("[START] GET request: %s", action)
 	response, err := b.get(ctx, action, params)
 	if response != nil {
@@ -109,7 +115,9 @@ func (b *Bot) getResult(ctx context.Context, action string, params map[string]st
 }
 
 func (b *Bot) postResult(ctx context.Context, action string, body interface{}, result interface{}) error {
-	defer b.debug("[STOP ] POST request: %s", action)
+	defer func(start time.Time) {
+		b.debug("[STOP ] POST request: %s [%0.5fs]", action, float64(time.Since(start))/float64(time.Second))
+	}(time.Now())
 	b.debug("[START] POST request: %s", action)
 	response, err := b.post(ctx, action, body)
 	if response != nil {
@@ -128,6 +136,7 @@ func (b *Bot) parse(response *http.Response, object *interface{}) error {
 	}
 	if response.StatusCode != http.StatusOK {
 		b.Log("invalid status code: %d // %s", response.StatusCode, string(data))
+		return InvalidStatusCode
 	}
 	b.debug("response: %s", data)
 	result := new(Response)
