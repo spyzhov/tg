@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	. "github.com/spyzhov/telego"
+	"log"
 	"os"
 	"strconv"
 )
 
 func main() {
 	bot := New(os.Getenv("TOKEN"))
+	bot.Log = log.Printf
 	chatId, err := strconv.Atoi(os.Getenv("CHAT_ID"))
 	if err != nil {
 		panic(err)

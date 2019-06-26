@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	. "github.com/spyzhov/telego"
+	"log"
 	"os"
 	"os/signal"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 
 func main() {
 	bot := New(os.Getenv("TOKEN"))
+	bot.Log = log.Printf
 	chatId, err := strconv.Atoi(os.Getenv("CHAT_ID"))
 	check(err)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)

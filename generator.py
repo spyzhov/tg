@@ -368,7 +368,7 @@ If this has happened, please [inform the author](https://github.com/spyzhov/tele
 
     logging.info("write doc.go")
     with open('doc.go', 'w') as objects:
-        objects.write(f'''// Telegram Bot API
+        objects.write(f'''// Package telego implements Telegram Bot API
 //
 // > Generated: **{datetime.date.today().strftime('%d %B %Y')}**
 //
