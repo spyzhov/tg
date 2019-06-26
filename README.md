@@ -1,8 +1,14 @@
 # Telegram BOT
 
+[![GoDoc](https://godoc.org/github.com/spyzhov/telego?status.svg)](https://godoc.org/github.com/spyzhov/telego)
+
 Implement golang interface for [Telegram Bot API](https://core.telegram.org/bots/api).
 
 Implemented all methods up to: May 31, 2019 Bot API 4.3
+
+# API
+
+All documentation about Bot.API you can find at [API.md](API.md)
 
 # Examples
 

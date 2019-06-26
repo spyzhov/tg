@@ -1,5 +1,6 @@
 import logging
 import requests
+import datetime
 import re
 
 from bs4 import BeautifulSoup
@@ -21,6 +22,10 @@ TYPES = {
     'Boolean': 'bool',
     'True': 'bool',
 }
+
+UNKNOWN_REQUEST = 'interface{}'
+UNKNOWN_RESPONSE = 'json.RawMessage'
+UNKNOWN_TYPE = ''
 
 
 @dataclass
@@ -48,6 +53,7 @@ class Field:
 
 @dataclass
 class Type:
+    section: str
     name: str
     url: str
     description: str
@@ -84,6 +90,50 @@ class Type:
             parts.append('//')
         return '\n'.join(parts)
 
+    def md(self, header: str) -> str:
+        parts = [
+            f'### {self.name}',
+            '',
+            f'**[Official documentation]({self.url})**',
+            '',
+            '#### Description',
+            '',
+            f'{self.description}',
+            '',
+        ]
+        if len(self.fields) > 0:
+            parts.append(f'#### {header}')
+            parts.append('')
+            parts.append('| Field | Type | Description |')
+            parts.append('| ----- | ---- | ----------- |')
+            for field in self.fields:
+                parts.append(f'| {field.name} | {field.type} | {field.description} |')
+            parts.append('')
+            parts.append('')
+        return '\n'.join(parts)
+
+    def request(self) -> str:
+        parts = [
+            '#### Interface',
+            '',
+            f'```go\n{interface(self)}\n```',
+            '',
+        ]
+        if len(self.fields) > 0:
+            parts.append('#### Request')
+            parts.append( f'\n```go\n{self}\n```\n')
+            parts.append('')
+        return '\n'.join(parts)
+
+    def response(self) -> str:
+        parts = [
+            '#### Interface',
+            '',
+            f'```go\n{self}\n```\n',
+            '',
+        ]
+        return '\n'.join(parts)
+
 
 def find(soup: Union[BeautifulSoup, Tag], *args) -> Optional[Tag]:
     return soup.find(*args)
@@ -110,16 +160,12 @@ def get_text(tag: Tag) -> str:
 
 
 def get_type(base: str) -> str:
-    # if base.find(' or ') != -1:
-    #     base = base.split(' or ')[0]
-    # if base.find(' and ') != -1:
-    #     base = base.split(' and ')[0]
     if base == 'Integer or String':
         return 'int'
     if base == 'InputFile or String':
-        return 'json.RawMessage'
+        return UNKNOWN_TYPE
     if base.find(' or ') != -1 or base.find(' and ') != -1:
-        return 'json.RawMessage'
+        return UNKNOWN_TYPE
     if base.startswith('Array of '):
         return '[]' + get_type(base[9:])
     return TYPES.get(base, '*' + base)
@@ -129,10 +175,12 @@ def parse_responses(soup: BeautifulSoup) -> Tuple[List[Type], List[Type]]:
     request = list()
     response = list()
     h3 = parent(find(soup, 'a', {'name': 'getting-updates'}))
+    section = ""
     current = None  # Type
     for tag in next_gen(h3):
         if tag.name == 'h3':
-            logging.debug("found Level: " + tag.text)
+            section = get_text(tag)
+            logging.debug("found Level: " + section)
             continue
         if tag.name == 'h4':
             current = None  # Type
@@ -144,7 +192,7 @@ def parse_responses(soup: BeautifulSoup) -> Tuple[List[Type], List[Type]]:
                 continue
 
             anchor = find(tag, 'a', {'class': 'anchor'}).get_attribute_list("href", [''])[0]
-            current = Type(get_text(tag), URL + anchor, "", list(), "")
+            current = Type(section, get_text(tag), URL + anchor, "", list(), "")
 
             if name[0].isupper():
                 logging.debug("found response: " + tag.text)
@@ -226,10 +274,16 @@ def description(text: str) -> str:
         try:
             result[index]
         except IndexError:
-            result.append('//')
+            result.append("//")
         finally:
             result[index] += ' ' + word
     return '\n'.join(result)
+
+
+def interface(_type: Type) -> str:
+    result_type = get_result(_type.description)
+    request = f', request *{_type.uname}{_type.postfix}' if _type.exists else ''
+    return f'func (b *Bot) {_type.uname}(ctx context.Context{request}) (result {result_type}, err error)'
 
 
 def method(_type: Type) -> str:
@@ -239,40 +293,92 @@ def method(_type: Type) -> str:
         result = f'\n\tresult = make({result_type}, 0)'
     elif result_type.startswith('*'):
         result = f'\n\tresult = new({result_type[1:]})'
-    request = f', request *{_type.uname}{_type.postfix}' if _type.exists else ''
     nil = 'request' if _type.exists else 'nil'
     return f'''// {_type.name}
 // {_type.url}
 {description(_type.description)}
-func (b *Bot) {_type.uname}(ctx context.Context{request}) (result {result_type}, err error) {{{result}
+{interface(_type)} {{{result}
 \treturn result, b.postResult(ctx, "{_type.name}", {nil}, &result)
 }}'''
 
 
 def main():
+    global UNKNOWN_TYPE
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)-15s %(levelname)s %(name)-8s %(message)s',
     )
-    content = requests.get(URL).text
+    content = requests.get(URL, headers={'Agent':'github.com/spyzhov/telego'}).text
     soup = BeautifulSoup(content, 'html.parser')
     request, response = parse_responses(soup)
 
+    request.sort(key=lambda _type: _type.name)
+    response.sort(key=lambda _type: _type.name)
+
+    UNKNOWN_TYPE = UNKNOWN_RESPONSE
+    logging.info("write response.go")
     with open('response.go', 'w') as objects:
         objects.write(f'{HEADER}\nimport "encoding/json"\n')
         for _type in response:
             objects.write(f'\n{_type!r}\n{_type}\n')
 
+    UNKNOWN_TYPE = UNKNOWN_REQUEST
+    logging.info("write request.go")
     with open('request.go', 'w') as objects:
-        objects.write(f'{HEADER}\nimport "encoding/json"\n')
+        objects.write(f'{HEADER}')
         for _type in request:
             if _type.exists:
                 objects.write(f'\n{_type!r}\n{_type}\n')
 
+    logging.info("write methods.go")
     with open('methods.go', 'w') as objects:
         objects.write(f'{HEADER}\nimport "context"\n')
         for _type in request:
             objects.write(f'\n{method(_type)}\n')
+
+    logging.info("write API.md")
+    with open('API.md', 'w') as objects:
+        objects.write(f'''# Telegram Bot API
+
+> Generated: **{datetime.date.today().strftime('%d %B %Y')}**
+
+Please feel free to reed an original [Telegram Bot API]({URL}) documentation. 
+
+API for Bot was generated automatically using original documentation and may has the difference. 
+If this has happened, please [inform the author](https://github.com/spyzhov/telego/issues/new).
+
+''')
+        objects.write('\n## Table of contents\n\n')
+        objects.write('* [Available methods](#available-methods)\n')
+        for _type in request:
+            objects.write(f'  * [{_type.name}](#{_type.name.lower()})\n')
+        objects.write('* [Available types](#available-types)\n')
+        for _type in response:
+            objects.write(f'  * [{_type.name}](#{_type.name.lower()})\n')
+
+        objects.write('\n## Available methods\n\n')
+        for _type in request:
+            objects.write(f'{_type.md("Parameters")}')
+            objects.write(f'{_type.request()}')
+
+        objects.write('\n## Available types\n\n')
+        for _type in response:
+            objects.write(f'{_type.md("Properties")}')
+            objects.write(f'{_type.response()}')
+
+    logging.info("write doc.go")
+    with open('doc.go', 'w') as objects:
+        objects.write(f'''// Telegram Bot API
+//
+// > Generated: **{datetime.date.today().strftime('%d %B %Y')}**
+//
+// Please feel free to reed an original Telegram Bot API documentation: {URL}
+//
+// API for Bot was generated automatically using original documentation and may has the difference.
+// If this has happened, please inform the author with new issue https://github.com/spyzhov/telego/issues/new
+//
+package telego
+''')
 
 
 if __name__ == "__main__":
