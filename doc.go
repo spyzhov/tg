@@ -1,4 +1,4 @@
-// Telegram Bot API
+// Package telego implements Telegram Bot API
 //
 // > Generated: **27 June 2019**
 //

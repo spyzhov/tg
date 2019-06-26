@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -27,6 +26,11 @@ type Response struct {
 	Result json.RawMessage `json:"result"`
 }
 
+type Error struct {
+	Response *Response
+	Basic    error
+}
+
 type Logger func(format string, v ...interface{})
 
 const (
@@ -42,7 +46,7 @@ func New(token string) *Bot {
 	return &Bot{
 		Host:  Host,
 		token: token,
-		Log:   log.Printf,
+		Log:   func(string, ...interface{}) {},
 	}
 }
 
@@ -72,46 +76,12 @@ func (b *Bot) post(ctx context.Context, action string, body interface{}) (*http.
 	return new(http.Client).Do(req)
 }
 
-func (b *Bot) get(ctx context.Context, action string, params map[string]string) (*http.Response, error) {
-	target, err := url.Parse(fmt.Sprintf("%s/bot%s/%s", b.Host, b.token, action))
-	if err != nil {
-		return nil, err
-	}
-
-	for name, value := range params {
-		target.Query().Set(name, value)
-	}
-
-	req, err := http.NewRequest(http.MethodGet, target.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-
-	return new(http.Client).Do(req)
-}
-
 func (b *Bot) closer(closer io.Closer, scope string) {
 	if closer != nil {
 		if err := closer.Close(); err != nil {
 			b.Log("closer [%s] error: %s", scope, err)
 		}
 	}
-}
-
-func (b *Bot) getResult(ctx context.Context, action string, params map[string]string, result interface{}) error {
-	defer func(start time.Time) {
-		b.debug("[STOP ] GET  request: %s [%0.5fs]", action, float64(time.Since(start))/float64(time.Second))
-	}(time.Now())
-	b.debug("[START] GET request: %s", action)
-	response, err := b.get(ctx, action, params)
-	if response != nil {
-		defer b.closer(response.Body, "response body")
-	}
-	if err != nil {
-		return err
-	}
-	return b.parse(response, &result)
 }
 
 func (b *Bot) postResult(ctx context.Context, action string, body interface{}, result interface{}) error {
@@ -145,11 +115,24 @@ func (b *Bot) parse(response *http.Response, object *interface{}) error {
 		return err
 	}
 	if !result.OK {
-		return WrongResponse
+		return &Error{
+			Basic:    WrongResponse,
+			Response: result,
+		}
 	}
-	return json.Unmarshal(result.Result, &object)
+	if err = json.Unmarshal(result.Result, &object); err != nil {
+		return &Error{
+			Basic:    err,
+			Response: result,
+		}
+	}
+	return nil
 }
 
 func (b *Bot) debug(format string, v ...interface{}) {
 	b.Log(format, v...)
+}
+
+func (e Error) Error() string {
+	return e.Basic.Error()
 }
