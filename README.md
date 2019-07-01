@@ -1,6 +1,6 @@
-# Telegram BOT
+# Telegram bot API on Golang
 
-[![GoDoc](https://godoc.org/github.com/spyzhov/telego?status.svg)](https://godoc.org/github.com/spyzhov/telego)
+[![GoDoc](https://godoc.org/github.com/spyzhov/tg?status.svg)](https://godoc.org/github.com/spyzhov/tg)
 
 Implement golang interface for [Telegram Bot API](https://core.telegram.org/bots/api).
 
@@ -26,7 +26,7 @@ package main
 import (
 	"context"
 	"fmt"
-	. "github.com/spyzhov/telego"
+	. "github.com/spyzhov/tg"
 	"os"
 	"strconv"
 )
