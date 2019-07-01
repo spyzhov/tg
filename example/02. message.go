@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	. "github.com/spyzhov/telego"
+	. "github.com/spyzhov/tg"
 	"log"
 	"os"
 	"strconv"

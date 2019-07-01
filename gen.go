@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	cmd := exec.Command("bash", "-c", "if [ -f 'venv/bin/activate' ]; then source venv/bin/activate; fi ; python generator.py 1>&2 stderr")
+	cmd := exec.Command("bash", "-c", "if [ -f 'venv/bin/activate' ]; then source venv/bin/activate; fi ; python3.7 generator.py 1>&2 stderr")
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		log.Fatal(err)

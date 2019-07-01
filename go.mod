@@ -1,3 +1,3 @@
-module github.com/spyzhov/telego
+module github.com/spyzhov/tg
 
 go 1.12

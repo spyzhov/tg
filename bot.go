@@ -1,4 +1,4 @@
-package telego
+package tg
 
 import (
 	"bytes"
