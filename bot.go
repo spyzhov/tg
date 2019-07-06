@@ -15,22 +15,26 @@ import (
 
 //go:generate go run gen.go
 
+// Bot structure as provider for Bot-API
 type Bot struct {
 	Host  string
 	Log   Logger
 	token string
 }
 
+// Response for default message
 type Response struct {
 	OK     bool            `json:"ok"`
 	Result json.RawMessage `json:"result"`
 }
 
+// Error wrapper
 type Error struct {
 	Response *Response
 	Basic    error
 }
 
+// Logger function for debugging
 type Logger func(format string, v ...interface{})
 
 const (

@@ -296,8 +296,9 @@ def method(_type: Type) -> str:
     elif result_type.startswith('*'):
         result = f'\n\tresult = new({result_type[1:]})'
     nil = 'request' if _type.exists else 'nil'
-    return f'''// {_type.name}
+    return f'''// {_type.uname}
 // {_type.url}
+//
 {description(_type.description)}
 {interface(_type)} {{{result}
 \treturn result, b.postResult(ctx, "{_type.name}", {nil}, &result)
