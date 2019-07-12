@@ -29,5 +29,5 @@ func main() {
 	if err = cmd.Wait(); err != nil {
 		log.Fatalf("Command finished with error: %v", err)
 	}
-	log.Printf("Command finished without error")
+	log.Printf("Command finished successfully")
 }

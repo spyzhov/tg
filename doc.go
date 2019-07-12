@@ -1,6 +1,6 @@
 // Package tg implements Telegram Bot API
 //
-// > Generated: **01 July 2019**
+// > Generated: **06 July 2019**
 //
 // Please feel free to reed an original Telegram Bot API documentation: https://core.telegram.org/bots/api
 //
