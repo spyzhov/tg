@@ -95,7 +95,11 @@ func (b *Bot) post(ctx context.Context, action string, body interface{}) (*http.
 	req.Header.Set("Content-Type", "application/json")
 	req = req.WithContext(ctx)
 	if b.Debug {
-		b.Log("DUMP\n%s", httputil.DumpRequest(req, true))
+		dump, err := httputil.DumpRequest(req, true)
+		if err != nil {
+			return &http.Response{}, err
+		}
+		b.Log("DUMP\n%s", string(dump))
 	}
 	return new(http.Client).Do(req)
 }
