@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"time"
 )
@@ -19,6 +20,7 @@ import (
 type Bot struct {
 	Host  string
 	Log   Logger
+	Debug bool
 	token string
 }
 
@@ -51,7 +53,23 @@ func New(token string) *Bot {
 		Host:  Host,
 		token: token,
 		Log:   func(string, ...interface{}) {},
+		Debug: false,
 	}
+}
+
+func (b *Bot) Request(ctx context.Context, action string, body interface{}) (result []byte, err error) {
+	defer func(start time.Time) {
+		b.debug("[STOP ] POST request: %s [%0.5fs]", action, float64(time.Since(start))/float64(time.Second))
+	}(time.Now())
+	b.debug("[START] POST request: %s", action)
+	response, err := b.post(ctx, action, body)
+	if response != nil {
+		defer b.closer(response.Body, "response body")
+	}
+	if err != nil {
+		return
+	}
+	return result, b.parse(response, &result)
 }
 
 func (b *Bot) post(ctx context.Context, action string, body interface{}) (*http.Response, error) {
@@ -76,7 +94,9 @@ func (b *Bot) post(ctx context.Context, action string, body interface{}) (*http.
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req = req.WithContext(ctx)
-
+	if b.Debug {
+		b.Log("DUMP\n%s", httputil.DumpRequest(req, true))
+	}
 	return new(http.Client).Do(req)
 }
 
@@ -103,7 +123,7 @@ func (b *Bot) postResult(ctx context.Context, action string, body interface{}, r
 	return b.parse(response, &result)
 }
 
-func (b *Bot) parse(response *http.Response, object *interface{}) error {
+func (b *Bot) parse(response *http.Response, object interface{}) error {
 	data, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return err
