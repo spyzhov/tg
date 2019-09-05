@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 )
@@ -15,15 +14,7 @@ import (
 func main() {
 	bot := New(os.Getenv("TOKEN"))
 	bot.Log = log.Printf
-	chatId, err := strconv.Atoi(os.Getenv("CHAT_ID"))
-	check(err)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
-
-	_, err = bot.SendMessage(ctx, &SendMessageRequest{
-		ChatId: chatId,
-		Text:   "Hello, write me something?",
-	})
-	check(err)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*600)
 
 	go func() {
 		timer := time.NewTicker(time.Second)
